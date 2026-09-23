@@ -1,0 +1,62 @@
+---
+title: Multiple Servers
+description:
+  Configure a Errand agent to connect to and use tools from multiple Model
+  Context Protocol (MCP) servers simultaneously.
+---
+
+This tutorial shows how to configure an agent to connect to two separate MCP
+servers: one for web scraping (`firecrawl-mcp`) and another for 3D rendering
+(`blender-mcp`).
+
+### Configuration
+
+The agent is configured by passing an array of server configurations to
+`createMcpExtension`. Each server has a unique `id` which is used to direct tool
+calls to the correct server.
+
+```typescript title="multi-mcp-agent.ts"
+import { createErrand, Logger, LogLevel } from "@errand/core";
+import { createMcpExtension } from "@errand/mcp";
+import { cliExtension } from "@errand/cli";
+import { errandrouter } from "@errand/ai-sdk-provider";
+
+createErrand({
+  model: errandrouter("google/gemini-2.5-pro"),
+  logger: new Logger({
+    level: LogLevel.INFO,
+  }),
+  extensions: [
+    cliExtension,
+    createMcpExtension([
+      {
+        id: "firecrawl-mcp",
+        name: "Firecrawl MCP Server",
+        transport: {
+          type: "stdio",
+          command: "npx",
+          args: ["-y", "firecrawl-mcp"],
+        },
+      },
+      {
+        id: "blender-mcp",
+        name: "Blender MCP Server",
+        transport: {
+          type: "stdio",
+          command: "uvx",
+          args: ["blender-mcp"],
+        },
+      },
+    ]),
+  ],
+}).start();
+```
+
+### Key Concepts
+
+- The `createMcpExtension` function takes an array of server configuration
+  objects.
+- Each server requires a unique `id` which the agent uses to target tool calls
+  (e.g., `firecrawl-mcp`).
+- The `transport` object defines the connection method. For local executables,
+  `stdio` is used with a `command` and an `args` array.

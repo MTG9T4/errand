@@ -1,0 +1,179 @@
+---
+title: Errand SDK Integration
+description: Errand Router provider for Vercel AI SDK with built‑in x402 payments
+---
+
+## Errand Router Provider for Vercel AI SDK
+
+Errand Router is an AI model router with built‑in x402 payments for the
+[Vercel AI SDK](https://sdk.vercel.ai/docs). It supports EVM and Solana, API
+keys or wallet auth, and auto‑generates exact payment headers from server
+requirements.
+
+### Key Features
+
+- Payment‑integrated AI using the x402 protocol (USDC)
+- Multiple auth methods: API key, JWT, or inline payments
+- Unified LLM router across providers and models
+- Manage your account at
+  [router.errand.systems](https://router.errand.systems)
+
+## Installation
+
+```bash
+npm install @errand/ai-sdk-provider viem x402
+```
+
+## Quick Start
+
+### Separated Auth (EVM/Solana helpers)
+
+```ts
+import { generateText } from 'ai';
+import {
+  createEVMAuthFromPrivateKey,
+  createSolanaAuthFromPublicKey,
+} from '@errand/ai-sdk-provider';
+
+// EVM (Ethereum, Base, etc.)
+const { errandRouter } = await createEVMAuthFromPrivateKey(
+  process.env.EVM_PRIVATE_KEY as `0x${string}`,
+  {
+    payments: { network: 'base-sepolia' },
+  }
+);
+
+// Solana (browser/wallet-style: publicKey + signMessage)
+const { errandRouter: solanaRouter } = await createSolanaAuthFromPublicKey(
+  process.env.SOL_PUBLIC_KEY!,
+  async ({ message }) => wallet.signMessage(message),
+  {
+    payments: {
+      network: 'solana-devnet',
+      rpcUrl: 'https://api.devnet.solana.com',
+    },
+  }
+);
+
+const { text } = await generateText({
+  model: errandRouter('google-vertex/gemini-2.5-flash'),
+  prompt: 'Hello from Errand Router!',
+});
+```
+
+Why separated helpers?
+
+- Type safety per chain; chain‑specific options stay clear
+- Explicit intent (EVM vs Solana), smaller bundles
+
+### API Key Auth
+
+```ts
+import { createErrandRouter } from '@errand/ai-sdk-provider';
+import { generateText } from 'ai';
+
+const errandRouter = createErrandRouter({
+  apiKey: process.env.ERRANDROUTER_API_KEY,
+});
+
+const { text } = await generateText({
+  model: errandRouter('google-vertex/gemini-2.5-flash'),
+  prompt: 'Hello, Errand Router!',
+});
+```
+
+### Namespace .evm / .solana (Node)
+
+```ts
+import {
+  createErrandRouter,
+  type SolanaSigner,
+} from '@errand/ai-sdk-provider';
+import { privateKeyToAccount } from 'viem/accounts';
+
+// EVM via viem Account
+const evm = createErrandRouter.evm(
+  privateKeyToAccount(process.env.EVM_PRIVATE_KEY as `0x${string}`),
+  { network: 'base-sepolia' }
+);
+
+// Solana via Node signer (base58 secret)
+const solana = createErrandRouter.solana(
+  {
+    type: 'node',
+    secretKeyBase58: process.env.SOLANA_SECRET_KEY!,
+    rpcUrl: process.env.SOLANA_RPC_URL,
+  },
+  { network: 'solana-devnet' }
+);
+```
+
+## Authentication Methods
+
+- x402 payments (wallet‑based, EVM or Solana)
+- API key
+- Session token (JWT) from wallet login
+
+## Configuration
+
+### Environment
+
+```bash
+# API key auth
+ERRANDROUTER_API_KEY=...
+
+# EVM auth
+EVM_PRIVATE_KEY=0x...
+
+# Solana (Node signer)
+SOLANA_SECRET_KEY=base58-encoded-64-byte-secret
+SOLANA_RPC_URL=https://api.devnet.solana.com
+
+# Solana (wallet-style)
+SOL_PUBLIC_KEY=...
+ROUTER_BASE_URL=https://api-beta.errand.systems
+```
+
+## Advanced
+
+### Payment config (auto‑requirements)
+
+```ts
+type ErrandRouterPaymentConfig = {
+  network?: 'base' | 'base-sepolia' | 'solana' | 'solana-devnet';
+  validityDuration?: number; // default 600s
+  mode?: 'lazy' | 'eager'; // default 'lazy'
+  rpcUrl?: string; // Solana only
+};
+```
+
+Amounts and pay‑to addresses come from the router’s 402 response and are signed
+automatically; you do not set them manually.
+
+### Solana signer interface (Node)
+
+```ts
+type SolanaSigner = {
+  type: 'node';
+  secretKeyBase58: string; // 64‑byte secret, base58
+  rpcUrl?: string;
+};
+```
+
+### Model selection
+
+Use any model available in the dashboard; e.g.
+`google-vertex/gemini-2.5-flash`.
+
+## Links
+
+- Errand Router Dashboard: https://router.errand.systems
+- x402 Protocol: https://github.com/x402
+- Vercel AI SDK: https://sdk.vercel.ai/docs
+
+## Resources
+
+- [Vercel AI SDK Documentation](https://sdk.vercel.ai/docs)
+- [Errand Core Documentation](/docs/core)
+- [Complete Examples](https://github.com/MTG9T4/errand/tree/main/examples)
+- [x402 Payment Protocol](https://x402.dev)

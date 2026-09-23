@@ -1,0 +1,6 @@
+{
+  "title": "Router",
+  "root": true,
+  "icon": "Brightness",
+  "pages": ["index", "quickstart", "errand-sdk", "v1"]
+}
